@@ -6,6 +6,8 @@ import socket
 import ssl
 from _thread import *
 import threading 
+import json
+from argon2 import PasswordHasher
 # renames method
 thread_lock = threading.Lock() 
 
@@ -19,6 +21,32 @@ def threaded_communication(conn,iporigin):
             break
         auth=data.decode('ascii')
         print("[Debug] Received authentication messagge: "+auth)
+        # checking fields received in the json message
+        d=json.loads(auth)
+        username=""
+        password=""
+        filesize=""
+        filehash=""
+        if "username" in d.keys(): 
+            username=d["username"]
+        if "password" in d.keys(): 
+            password=d["password"]
+        if "filesize" in d.keys(): 
+            filesize=d["filesize"]        
+        if "filehash" in d.keys(): 
+            filehash=d["filehash"]
+        if len(username)==0 or len(password)==0 or len(filesize)==0 or  len(filehash)==0 :
+            answer="{\"answer\":\"KO\",\"message\":\"Authorization denied\"}"
+            conn.sendall(answer.encode('utf-8'))
+            print("[Info] Authorizaton denied")
+            break
+        # check password validity
+        if verify_credentials(username,password)==False:
+            answer="{\"answer\":\"KO\",\"message\":\"Authorization denied for wrong credentials\"}"
+            conn.sendall(answer.encode('utf-8'))
+            print("[Info] Authorizaton denied for wrong credentials")
+            break
+        
         #echo data back for testing
         conn.sendall(data)
     # close connection and release thread
@@ -26,7 +54,11 @@ def threaded_communication(conn,iporigin):
     conn.close()
     thread_lock.release() 
     return
-
+# function to verify username and password
+def verify_credentials(username,password):
+    hash=PasswordHasher().hash(password)
+    print("[Debug] Argon2 hash: "+hash)
+    return True
 ################################## End functions code #################################    
 
 ################################## Main code ##########################################    

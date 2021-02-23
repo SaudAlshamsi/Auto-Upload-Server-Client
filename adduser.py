@@ -32,7 +32,7 @@ username=""
 password=""
 filename=""
 try:
-   opts, args = getopt.getopt(sys.argv[1:],"hu:p:f",["username=","password=","filename="])
+   opts, args = getopt.getopt(sys.argv[1:],"hu:p:f:",["username=","password=","filename="])
 except getopt.GetoptError:
    print_usage()
    sys.exit(2)

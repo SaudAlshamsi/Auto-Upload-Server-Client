@@ -1,8 +1,7 @@
 # Auto Upload Server/Client
 
-This application allows to setup an UPLOADING server and use a a client to 
-periodically upload files over an encrypted connection over TLS.  
-The users' authentication is done using using username/password.  
+This application allows to setup an UPLOADING server and uses a client to periodically upload files over an encrypted connection over TLS.  
+The users' authentication is done using by username and password.  
 The passwords are stored encrypted by a strong (Argon2)[https://en.wikipedia.org/wiki/Argon2] hash.  
 The uploaded files can be automatically deleted after the confirmed upload.  
 For security, the files deleted are overwritten with random data before the cancellation. 
@@ -10,6 +9,7 @@ The upload can start upon condition that a certain network interface is
 active. It can be useful to avoid heavy upload when connected over mobile
 data and start the upload when you are under wifi coverage.
 The server is multi-threaded and it can probably handle >1000 connections at the same time.
+It has been created to transfer heavy files like video recordings.
 
 The main components are:  
 

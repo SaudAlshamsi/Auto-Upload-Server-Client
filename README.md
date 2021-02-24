@@ -86,6 +86,12 @@ or
 - deleteafteruploads allow to secure delete the uploaded files as soon the correct transfer has been confirmed.  
 
 
+## TODO:
+
+- Multi-layer Encryption/Decryption of the files with key exchange based on  Ephemeral Diffie-Hellman and Eliptic Curve;   
+- Additional authetication layer ased on Time One Time Password;  
+- Improve the controled management of network disconnections.  
+
 
 
 

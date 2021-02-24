@@ -19,7 +19,7 @@ def print_usage():
    print("or")
    print("python3 auto-upload-client.py -s <servername> -u <username> -p <password> -f <folder_to_upload> -i <networkinterface> -e <y/N> -d=<y/N>" )
    print("- servername,username,password and folder are mandatories")
-   print("- folder parameter may be a a path or a filename with support of wildcards in Linux style (* ? [range])")
+   print("- folder parameter should be  path where the files to upload are located")
    print("- inet,encrypt and deleteafterupload have a default value= n (No) if not set")
    print("- inet can limit the upload to when a specific network interface is up. A case usage is that you record video in a car and when it's back connected to a wifi network, the videos are uploaded.")
    return

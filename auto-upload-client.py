@@ -11,7 +11,7 @@ import hashlib
 import json
 import glob 
 import netifaces
-
+import math
 ############################# Functions code  #######################
 # function to print the usage help
 def print_usage():
@@ -31,9 +31,19 @@ def get_hash_file(filename):
     # returns hash in hex decimal string  
     return sha_hash.hexdigest()
     
+#function to secure delete a file over writing with random data and remove
+def secure_delete(filename):
+    with open(filename, "ba+") as delfile:
+        length = delfile.tell()
+        delfile.seek(0)
+        x=math.ceil(length/32768)
+        for y in range(x):
+           delfile.write(os.urandom(length))
+    os.remove(filename)    
+    return
    
 # function to upload file, return True once completed or False for failed upload
-def upload_file(filename,servername,username,password):
+def upload_file(filename,servername,username,password,deleteafterupload):
    flag=False
    # gets file size
    file_stats = os.stat(filename)
@@ -78,11 +88,10 @@ def upload_file(filename,servername,username,password):
                 # waiting confirmation
                 msg = ssock.recv(1024)
                 confirmation=json.loads(msg.decode('ascii'))
-                # autodelete
+                # secure delete 
                 print("[Info] ",confirmation["message"])
-                #if confirmation["answer"]=="OK":
-
-                #todo
+                if confirmation["answer"]=="OK" and deleteafterupload=="y":
+                    secure_delete(filename)
                 flag=True
           #socket closing
           ssock.close()      
@@ -102,7 +111,7 @@ deleteafterupload="n"
 inet=""
 # gets command line parameters if any
 try:
-   opts, args = getopt.getopt(sys.argv[1:],"hs:u:p:f:i:e",["servername","username=","password=","folder","wifionly","encrypt","autodelete"])
+   opts, args = getopt.getopt(sys.argv[1:],"hs:u:p:f:i:e:d:",["servername","username=","password=","folder","inet","encrypt","deleteafterupload"])
 except getopt.GetoptError:
    print_usage()
    sys.exit(2)
@@ -153,18 +162,22 @@ if len(inet)>0:
 if upflag==False:
    print("[Info} Inet interface: ",inet," is down, upload is not possible")
    sys.exit(2)
-# upload files
+# adding / to folder if missing
 x=len(folder)
 if folder[x-1] != "/":
    folder=folder+"/"
+# upload files loop   
 for fname in os.listdir(folder): 
     print("[Info] Uploading :",folder,fname) 
-    result=upload_file(folder+fname,servername,username,password)
+    result=upload_file(folder+fname,servername,username,password,deleteafterupload)
     if result==True:
        print("[Info] Transfer successful")
     # auto delete if required
-    #if deleteafterupload=="y" and result==True:
-    
+    if deleteafterupload=="y" and result==True:
+        print("[Info] Secure deleting: "+folder+fname)
+        secure_delete(folder+fname)
+        print("[Info] Secure delete completed")
+
 sys.exit()
 
     

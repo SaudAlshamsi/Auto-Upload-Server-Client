@@ -10,15 +10,16 @@ import os
 import hashlib
 import json
 import glob 
+import netifaces
 
 ############################# Functions code  #######################
 # function to print the usage help
 def print_usage():
-   print("usage: python3 auto-upload-client.py --servername=<servername> --username=<username> --password=<password> --folder=<folder_to_upload> --wifionly=<y/N> --encrypt=<y/N> --deleteafterupload=<y/N>" )
+   print("usage: python3 auto-upload-client.py --servername=<servername> --username=<username> --password=<password> --folder=<folder_to_upload> --inet=<networkinterface> --encrypt=<y/N> --deleteafterupload=<y/N>" )
    print("- servername,username,password and folder are mandatories")
    print("- folder parameter may be a a path or a filename with support of wildcards in Linux style (* ? [range])")
-   print("- wifionly,encrypt and deleteafterupload have a default value= n (No) if not set")
-   
+   print("- inet,encrypt and deleteafterupload have a default value= n (No) if not set")
+   print("- inet can limit the upload to when a specific network interface is up. A case usage is that you record video in a car and when it's back connected to a wifi network, the videos are uploaded.")
    return
 # function to calculate sha2-512 of a file
 def get_hash_file(filename):
@@ -98,10 +99,10 @@ folder=""
 wifionly="n"
 encrypt="n"
 deleteafterupload="n"
-
+inet=""
 # gets command line parameters if any
 try:
-   opts, args = getopt.getopt(sys.argv[1:],"hs:u:p:f:w:e",["servername","username=","password=","folder","wifionly","encrypt","autodelete"])
+   opts, args = getopt.getopt(sys.argv[1:],"hs:u:p:f:i:e",["servername","username=","password=","folder","wifionly","encrypt","autodelete"])
 except getopt.GetoptError:
    print_usage()
    sys.exit(2)
@@ -117,8 +118,8 @@ for opt, arg in opts:
       password = arg
    elif opt in ("-f", "--folder"):
       folder = arg
-   elif opt in ("-w", "--wifionly"):
-      wifionly = arg.lower()    
+   elif opt in ("-i", "--inet"):
+      inet = arg.lower()    
    elif opt in ("-e", "--encrypt"):
       encrypt = arg.lower()
    elif opt in ("-d", "--deleteafterupload"):
@@ -134,16 +135,24 @@ if len(password)==0:
     e=e+"- password is missing\n"
 if len(folder)==0:
     e=e+"- folder parameter is missing\n"    
-if wifionly!="y" and wifionly!="n":
-    e=e+"Wifi parameter is wrong, should be y/n\n"
 # exits in case of missing/wrong parameters
 if len(e)>0:
     print(e)
     print_usage()
     sys.exit()
 # check for wifi/wired connection
-#print(hashlib.algorithms_guaranteed) 
-
+upflag=True
+if len(inet)>0:
+   upflag=False
+   for interface in netifaces.interfaces():
+      if interface==inet:
+        ip=netifaces.ifaddresses(interface)[netifaces.AF_INET][0]['addr']
+        if ip!="0.0.0.0" and ip[0:7]!="169.254.":
+           upflag=True
+      
+if upflag==False:
+   print("[Info} Inet interface: ",inet," is down, upload is not possible")
+   sys.exit(2)
 # upload files
 x=len(folder)
 if folder[x-1] != "/":

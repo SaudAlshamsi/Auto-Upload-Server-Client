@@ -1,7 +1,14 @@
-import os
-import socket
-IPaddress=socket.gethostbyname(socket.gethostname())
-if IPaddress=="127.0.0.1":
-    print("No internet, your localhost is "+ IPaddress)
-else:
-    print("Connected, with the IP address: "+ IPaddress )
+import netifaces
+
+print (netifaces.interfaces())
+
+
+#print (netifaces.ifaddresses('lo'))
+
+#print (netifaces.AF_LINK)
+
+#addrs=netifaces.ifaddresses('enp0s31f6')
+#print(addrs)
+#print(addrs[netifaces.AF_INET][0]['addr'])
+print(netifaces.ifaddresses('enp0s31f6')[netifaces.AF_INET][0]['addr'])
+#print(addrs[netifaces.AF_LINK])

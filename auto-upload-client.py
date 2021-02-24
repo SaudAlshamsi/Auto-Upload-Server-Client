@@ -16,6 +16,8 @@ import math
 # function to print the usage help
 def print_usage():
    print("usage: python3 auto-upload-client.py --servername=<servername> --username=<username> --password=<password> --folder=<folder_to_upload> --inet=<networkinterface> --encrypt=<y/N> --deleteafterupload=<y/N>" )
+   print("or")
+   print("python3 auto-upload-client.py -s <servername> -u <username> -p <password> -f <folder_to_upload> -i <networkinterface> -e <y/N> -d=<y/N>" )
    print("- servername,username,password and folder are mandatories")
    print("- folder parameter may be a a path or a filename with support of wildcards in Linux style (* ? [range])")
    print("- inet,encrypt and deleteafterupload have a default value= n (No) if not set")

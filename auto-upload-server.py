@@ -10,7 +10,8 @@ import json
 import sys
 import os
 import getopt
-from argon2 import PasswordHasher
+import argon2
+import hashlib
 # renames method
 thread_lock = threading.Lock() 
 
@@ -22,6 +23,16 @@ def print_usage():
     print("python3  auto-upload-server.py -p <passwordfilename> -c <fullchaincertificatefilename> -k <privatekeyfilename> -f <folderstorage>")
     return
     
+# function to calculate sha2-512 of a file
+def get_hash_file(filename):
+    sha_hash = hashlib.sha512()
+    with open(filename,"rb") as f:
+       # Reads and updates hash string value in blocks of 4K
+       for byte_block in iter(lambda: f.read(4096),b""):
+           sha_hash.update(byte_block)
+    # returns hash in hex decimal string  
+    return sha_hash.hexdigest()
+        
 ## communication session
 def threaded_communication(conn,iporigin,pwdfile,folder):
     #set folder with / at the end
@@ -97,8 +108,12 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
         f.close()
         print("[Debug] End of file transfer")
         #check hash of the file
-        # confirm file transfer 
-        answer="{\"answer\":\"OK\",\"message\":\"File Transfer Completed\"}"
+        currenthash=get_hash_file(localfilename)
+        if currenthash==filehash:
+            # confirm file transfer 
+            answer="{\"answer\":\"OK\",\"message\":\"File Transfer Completed\"}"
+        else:
+            answer="{\"answer\":\"KO\",\"message\":\"File Transfer Broken\"}"
         conn.sendall(answer.encode('utf-8'))
     # close connection and release thread
     print("[Info] Connection closed with: "+iporigin)
@@ -123,6 +138,7 @@ def verify_credentials(username,password,pwdfile):
               print("[Debug] Checking password: "+password+" hash: "+hash)
               flag=argon2.PasswordHasher().verify(hash,password)
               print("[Info] Credentials validity: "+ flag)
+              return True
           except:
               print("[Info] Credentials validity exit for exception")
               return True

@@ -17,13 +17,17 @@ thread_lock = threading.Lock()
 ################################## Functions code #####################################    
 ## print usage parameters
 def print_usage():
-    print("python3 auto-upload-server.py --pwdfilename=<passwordfilename> --certificatefilename=<fullchaincertificatefilename> --privatekeyfilename=<privatekeyfilename>")
+    print("python3 auto-upload-server.py --pwdfilename=<passwordfilename> --certificatefilename=<fullchaincertificatefilename> --privatekeyfilename=<privatekeyfilename> --folder=<folderstorage>")
     print("or")
-    print("python3  auto-upload-server.py -p <passwordfilename> -c <fullchaincertificatefilename> -k <privatekeyfilename>")
+    print("python3  auto-upload-server.py -p <passwordfilename> -c <fullchaincertificatefilename> -k <privatekeyfilename> -f <folderstorage>")
     return
     
 ## communication session
-def threaded_communication(conn,iporigin,pwdfile):
+def threaded_communication(conn,iporigin,pwdfile,folder):
+    #set folder with / at the end
+    x=len(folder)
+    if folder[x-1] is not "/":
+        folder=folder+"/"
     while True: 
         # wait for authentication message
         data = conn.recv(2048)
@@ -36,12 +40,15 @@ def threaded_communication(conn,iporigin,pwdfile):
         d=json.loads(auth)
         username=""
         password=""
+        filename=""
         filesize=""
         filehash=""
         if "username" in d.keys(): 
             username=d["username"]
         if "password" in d.keys(): 
             password=d["password"]
+        if "filename" in d.keys(): 
+            filename=d["filename"]        
         if "filesize" in d.keys(): 
             filesize=d["filesize"]        
         if "filehash" in d.keys(): 
@@ -57,9 +64,42 @@ def threaded_communication(conn,iporigin,pwdfile):
             conn.sendall(answer.encode('utf-8'))
             print("[Info] Authorizaton denied for wrong credentials")
             break
-        
-        #echo data back for testing
-        conn.sendall(data)
+        #authorized message
+        answer="{\"answer\":\"OK\",\"message\":\"Transfer Authorized - Waiting for data\"}"
+        conn.sendall(answer.encode('utf-8'))
+        print("[Info] Authorized file transfer:"+filename+" waiting for data")
+        #create user folder if does not exist
+        localfolder=folder+username
+        if not os.path.exists(localfolder):
+            try:
+                print("[Debug] Creating folder: ",localfolder)
+                os.mkdir(localfolder)
+            except OSError:
+                print ("[Error] Creation of the folder %s failed" % localfolder)
+                conn.close()
+                thread_lock.release() 
+                return
+        localfilename = localfolder+"/"+os.path.basename(filename)
+        print("[Info] Local file name: "+localfilename)
+        f=open(localfilename,"wb")
+        # receiving data loop over TLS
+        bytesrcv=0
+        fsize=int(filesize)
+        while bytesrcv<fsize:
+            data = conn.recv(32768)
+            print("[Debug] Received block of bytes: ",len(data))
+            if not data:
+                break
+            f.write(data)
+            bytesrcv=bytesrcv+len(data)
+            print("[Debug] Total bytes received: ",bytesrcv," expected: ",fsize)
+        #file closing
+        f.close()
+        print("[Debug] End of file transfer")
+        #check hash of the file
+        # confirm file transfer 
+        answer="{\"answer\":\"OK\",\"message\":\"File Transfer Completed\"}"
+        conn.sendall(answer.encode('utf-8'))
     # close connection and release thread
     print("[Info] Connection closed with: "+iporigin)
     conn.close()
@@ -92,12 +132,13 @@ def verify_credentials(username,password,pwdfile):
 
 ################################## Main code ##########################################    
 # gets command line parameters if any
-pwdfilename=""
-certificatefilename=""
-privatekeyfilename=""
+pwdfile=""
+certificate=""
+privatekey=""
+folder=""
 
 try:
-   opts, args = getopt.getopt(sys.argv[1:],"hp:c:k:",["pwdfile","certificate","privatekey"])
+   opts, args = getopt.getopt(sys.argv[1:],"hp:c:k:f:",["pwdfile","certificate","privatekey","folder"])
 except getopt.GetoptError:
    print("###")
    print_usage()
@@ -113,18 +154,24 @@ for opt, arg in opts:
       certificate = arg
    elif opt in ("-k", "--privatekey"):
       privatekey = arg
+   elif opt in ("-f", "--folder"):
+      folder = arg     
 #check parameters
-if len(pwdfile)==0 or len(certificate)==0 or len(privatekey)==0:
-    print("pwdfilename:" + pwdfile);
-    print("certificate: "+certificate)
-    print("privatekey: "+privatekey)
+if len(pwdfile)==0 or len(certificate)==0 or len(privatekey)==0 or len(folder)==0:
     print_usage()
     sys.exit(2)
-
+if not os.path.exists(certificate):
+    print("[Error] Certificate file not found ",certificate)
+    sys.exit(2)
+if not os.path.exists(privatekey):
+    print("[Error] Private key file not found ",privatekey)    
+    sys.exit(2)
+    
 #server starting
 print("[Info] Auto-upload-server starting")
 context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-context.load_cert_chain('/etc/letsencrypt/live/upload.umabot.ai/fullchain.pem', '/etc/letsencrypt/live/upload.umabot.ai/privkey.pem')
+#context.load_cert_chain('/etc/letsencrypt/live/upload.umabot.ai/fullchain.pem', '/etc/letsencrypt/live/upload.umabot.ai/privkey.pem')
+context.load_cert_chain(certificate, privatekey)
 
 #waiting for connections on port 443
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0) as sock:
@@ -137,5 +184,5 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0) as sock:
             print('[Info] Connection from:',addr[0], ':', addr[1]) 
             thread_lock.acquire() 
             print('[Info] Starting new communication thread')             
-            start_new_thread(threaded_communication, (conn,addr[0],pwdfile))
+            start_new_thread(threaded_communication, (conn,addr[0],pwdfile,folder))
         sock.close() 

@@ -7,8 +7,9 @@ import ssl
 import sys
 import getopt
 import os
-import glob 
 import hashlib
+import json
+import glob 
 
 ############################# Functions code  #######################
 # function to print the usage help
@@ -32,6 +33,7 @@ def get_hash_file(filename):
    
 # function to upload file, return True once completed or False for failed upload
 def upload_file(filename,servername,username,password):
+   flag=False
    # gets file size
    file_stats = os.stat(filename)
    filesize=file_stats.st_size
@@ -53,10 +55,37 @@ def upload_file(filename,servername,username,password):
           #send authentication message
           ssock.sendall(auth.encode('utf-8'))
           # read answer to authentication request
-          msg = ssock.recv(1024)                                     
-          print (msg.decode('ascii'))
-             
-   return False
+          msg = ssock.recv(1024)                 
+          a=json.loads(msg.decode('ascii'))                    
+          if "answer" in a.keys(): 
+             if a["answer"]=="OK":
+                # sending file 
+                print("[Debug] Sending file:", filename)
+                totbytes=0
+                f=open(filename,"rb")
+                while True:
+                    bytes=f.read(32768);
+                    if not bytes:
+                       break
+                    print("[Debug] Sending ",len(bytes)," bytes")
+                    ssock.sendall(bytes)
+                    totbytes=totbytes+len(bytes)
+                    
+                # file closing
+                print("[Info] Bytes uploaded: ",totbytes)
+                f.close()
+                # waiting confirmation
+                msg = ssock.recv(1024)
+                confirmation=json.loads(msg.decode('ascii'))
+                # autodelete
+                print("[Info] ",confirmation["message"])
+                #if confirmation["answer"]=="OK":
+
+                #todo
+                flag=True
+          #socket closing
+          ssock.close()      
+   return flag
    
 ############################# End functions code  ###################
 
@@ -113,14 +142,20 @@ if len(e)>0:
     print_usage()
     sys.exit()
 # check for wifi/wired connection
-print(hashlib.algorithms_guaranteed) 
+#print(hashlib.algorithms_guaranteed) 
 
 # upload files
-for name in glob.glob(folder,recursive=True): 
-    print("[Info] Uploading :"+name) 
-    result=upload_file(name,servername,username,password)
+x=len(folder)
+if folder[x-1] != "/":
+   folder=folder+"/"
+for fname in os.listdir(folder): 
+    print("[Info] Uploading :",folder,fname) 
+    result=upload_file(folder+fname,servername,username,password)
+    if result==True:
+       print("[Info] Transfer successful")
     # auto delete if required
     #if deleteafterupload=="y" and result==True:
+    
 sys.exit()
 
     

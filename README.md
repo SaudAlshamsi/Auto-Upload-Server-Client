@@ -45,10 +45,13 @@ You should add at the least one user:
 ```bash
 python3 adduser.py -u usertest -p mypassword -f password.autoupload
 ```
-
 -u = username  
 -p = user password
 -f = file name for password storage
+
+### Remove Users
+Edit the password file with any text editor, remove the line where the first
+part is the username to remove and save.  
 
 ## Server Running
 The server waits for connection on port 443 over TLS. To run it in

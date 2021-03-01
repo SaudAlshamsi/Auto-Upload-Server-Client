@@ -21,7 +21,7 @@ The main components are:
 
 - python >= 3.8  
 - Linux Operating system, tested on Debian 10  and Raspberry PI OS
-- python3 libraries for openssl,argon2 and netifaces
+- python3 libraries for openssl,argon2,pyotp and netifaces
 
 ## Installation:
 
@@ -29,7 +29,7 @@ The main components are:
 ```bash
 apt-get update  
 apt-get upgrade  
-apt-get install python3-openssl python3-argon2 python3-netifaces  
+apt-get install python3-openssl python3-argon2 python3-netifaces python3-pyotp
 ```
 
 ### TLS Certificate/Private Key
@@ -76,11 +76,11 @@ The client is the the component uploading the files to the server, to run it
 from a bash/shell:  
 
 ```bash
-python3 auto-upload-client.py --servername=<servername> --username=<username> --password=<password> --folder=<folder_to_upload> --inet=<networkinterface> --encrypt=<y/N> --deleteafterupload=<y/N>
+python3 auto-upload-client.py --servername=<servername> --username=<username> --password=<password> --totp=<totpseed> --folder=<folder_to_upload> --inet=<networkinterface> --encrypt=<y/N> --deleteafterupload=<y/N>
 ```  
 or  
 ```bash
- python3 auto-upload-client.py -s <servername> -u <username> -p <password> -f <folder_to_upload> -i <networkinterface> -e <y/N> -d=<y/N>
+ python3 auto-upload-client.py -s <servername> -u <username> -p <password> -t <totpseed> -f <folder_to_upload> -i <networkinterface> -e <y/N> -d=<y/N>
 ```
 - servername,username,password and folder are mandatories  
 - folder parameter should be path where the files to upload are located  

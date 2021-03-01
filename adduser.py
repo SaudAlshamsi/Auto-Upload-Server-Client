@@ -4,6 +4,7 @@ from argon2 import PasswordHasher
 import sys
 import getopt
 import os
+import pyotp
 
 #function to print the usage parameters
 def print_usage():
@@ -55,12 +56,14 @@ if check_free_username(username,filename)==False:
     sys.exit(2)
 # encode with argon2 the password
 hash=PasswordHasher().hash(password)
-w=username+"#"+hash+"\n"
+# generate a TOTP seed
+totp=pyotp.random_base32()
+w=username+"#"+totp+"#"+hash+"\n"
 print("[Info] Writing file: "+filename)
 f=open(filename, "a+")
 f.write(w)
 f.close()
-print("[Info] New user added");
+print("[Info] New user added with TOTP SEED:",totp," (please configure it in your client)");
 sys.exit(0)
 
 

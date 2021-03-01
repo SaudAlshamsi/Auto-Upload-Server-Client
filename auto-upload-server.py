@@ -12,6 +12,7 @@ import os
 import getopt
 import argon2
 import hashlib
+import pyotp
 # renames method
 thread_lock = threading.Lock() 
 
@@ -48,12 +49,19 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
         print("[Debug] Received authentication messagge: "+auth)
         print("[Debug] Password file name to check: "+pwdfile)
         # checking fields received in the json message
-        d=json.loads(auth)
+        try:
+            d=json.loads(auth)
+        except:
+            print("[Info] Wrong authentication message")
+            conn.close()
+            thread_lock.release() 
+            return
         username=""
         password=""
         filename=""
         filesize=""
         filehash=""
+        totp=""
         if "username" in d.keys(): 
             username=d["username"]
         if "password" in d.keys(): 
@@ -64,13 +72,15 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
             filesize=d["filesize"]        
         if "filehash" in d.keys(): 
             filehash=d["filehash"]
-        if len(username)==0 or len(password)==0 or len(filesize)==0 or  len(filehash)==0 :
+        if "totp" in d.keys(): 
+            totp=d["totp"]
+        if len(username)==0 or len(password)==0 or len(filesize)==0 or  len(filehash)==0 or len(totp)==0 :
             answer="{\"answer\":\"KO\",\"message\":\"Authorization denied\"}"
             conn.sendall(answer.encode('utf-8'))
             print("[Info] Authorizaton denied")
             break
         # check password validity
-        if verify_credentials(username,password,pwdfile)==False:
+        if verify_credentials(username,password,totp,pwdfile)==False:
             answer="{\"answer\":\"KO\",\"message\":\"Authorization denied for wrong credentials\"}"
             conn.sendall(answer.encode('utf-8'))
             print("[Info] Authorizaton denied for wrong credentials")
@@ -120,8 +130,8 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
     conn.close()
     thread_lock.release() 
     return
-# function to verify username and password
-def verify_credentials(username,password,pwdfile):
+# function to verify username/password and totp
+def verify_credentials(username,password,totp,pwdfile):
     flag=False
     if os.path.exists(pwdfile)==False:
          print("[Info] Password file not found: " +pwdfile)
@@ -132,8 +142,15 @@ def verify_credentials(username,password,pwdfile):
         if not r:
           break
         v=r.split("#")
-        hash=v[1].replace("\n","")
+        hash=v[2].replace("\n","")
+        hash=hash.replace("\r","")
         if v[0]==username:
+          # verify OTP
+          totpf = pyotp.TOTP(v[1])
+          if totpf.verify(totp)==False:
+              print("[Info] Totp authentication failed. Totp:",totp," seed: ".v[1])
+              return False
+          # verify password with Argon2
           try:
               print("[Debug] Checking password: "+password+" hash: "+hash)
               flag=argon2.PasswordHasher().verify(hash,password)
@@ -141,7 +158,7 @@ def verify_credentials(username,password,pwdfile):
               return True
           except:
               print("[Info] Credentials validity exit for exception")
-              return True
+              return False
     print("[Info] Credentials not valid for username not found")
     return False
 ################################## End functions code #################################    

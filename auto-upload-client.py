@@ -12,12 +12,13 @@ import json
 import glob 
 import netifaces
 import math
+import pyotp
 ############################# Functions code  #######################
 # function to print the usage help
 def print_usage():
-   print("usage: python3 auto-upload-client.py --servername=<servername> --username=<username> --password=<password> --folder=<folder_to_upload> --inet=<networkinterface> --encrypt=<y/N> --deleteafterupload=<y/N>" )
+   print("usage: python3 auto-upload-client.py --servername=<servername> --username=<username> --password=<password> --totp=<totpseed> --folder=<folder_to_upload> --inet=<networkinterface> --encrypt=<y/N> --deleteafterupload=<y/N>" )
    print("or")
-   print("python3 auto-upload-client.py -s <servername> -u <username> -p <password> -f <folder_to_upload> -i <networkinterface> -e <y/N> -d=<y/N>" )
+   print("python3 auto-upload-client.py -s <servername> -u <username> -p <password> -t <totpseed> -f <folder_to_upload> -i <networkinterface> -e <y/N> -d=<y/N>" )
    print("- servername,username,password and folder are mandatories")
    print("- folder parameter should be  path where the files to upload are located")
    print("- inet,encrypt and deleteafterupload have a default value= n (No) if not set")
@@ -45,7 +46,7 @@ def secure_delete(filename):
     return
    
 # function to upload file, return True once completed or False for failed upload
-def upload_file(filename,servername,username,password,deleteafterupload):
+def upload_file(filename,servername,username,password,totp,deleteafterupload):
    flag=False
    # gets file size
    file_stats = os.stat(filename)
@@ -53,12 +54,17 @@ def upload_file(filename,servername,username,password,deleteafterupload):
    # gets sha-512
    filehash=get_hash_file(filename)
    print("[Info] Sha2-512 hash: "+filehash)
+   # compute the totp
+   totpf = pyotp.TOTP(totp)
+   totpc=totpf.now()   
    # creates authentication message
    auth="{\"username\":\""+username+"\","
    auth=auth+"\"password\":\""+password+"\","
    auth=auth+"\"filename\":\""+filename+"\","
    auth=auth+"\"filesize\":\""+str(filesize)+"\","
-   auth=auth+"\"filehash\":\""+filehash+"\"}"
+   auth=auth+"\"filehash\":\""+filehash+"\","
+   auth=auth+"\"totp\":\""+totpc+"\""
+   auth=auth+"}"
    print("[Debug] Authentication message: "+auth)
    ## opens connection over TLS to the upload servers
    context = ssl.create_default_context()
@@ -106,6 +112,7 @@ def upload_file(filename,servername,username,password,deleteafterupload):
 servername=""
 username=""
 password=""
+totp=""
 folder=""
 wifionly="n"
 encrypt="n"
@@ -113,7 +120,7 @@ deleteafterupload="n"
 inet=""
 # gets command line parameters if any
 try:
-   opts, args = getopt.getopt(sys.argv[1:],"hs:u:p:f:i:e:d:",["servername","username=","password=","folder","inet","encrypt","deleteafterupload"])
+   opts, args = getopt.getopt(sys.argv[1:],"hs:u:p:t:f:i:e:d:",["servername","username=","password=","totp","folder","inet","encrypt","deleteafterupload"])
 except getopt.GetoptError:
    print_usage()
    sys.exit(2)
@@ -127,6 +134,8 @@ for opt, arg in opts:
       username = arg
    elif opt in ("-p", "--password"):
       password = arg
+   elif opt in ("-t", "--totp"):
+      totp = arg     
    elif opt in ("-f", "--folder"):
       folder = arg
    elif opt in ("-i", "--inet"):
@@ -144,6 +153,8 @@ if len(username)==0:
     e=e+"- username is missing\n"
 if len(password)==0:
     e=e+"- password is missing\n"
+if len(totp)==0:
+    e=e+"- totp seed is missing\n"    
 if len(folder)==0:
     e=e+"- folder parameter is missing\n"    
 # exits in case of missing/wrong parameters
@@ -171,7 +182,7 @@ if folder[x-1] != "/":
 # upload files loop   
 for fname in os.listdir(folder): 
     print("[Info] Uploading :",folder,fname) 
-    result=upload_file(folder+fname,servername,username,password,deleteafterupload)
+    result=upload_file(folder+fname,servername,username,password,totp,deleteafterupload)
     if result==True:
        print("[Info] Transfer successful")
     # auto delete if required

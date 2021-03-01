@@ -13,6 +13,9 @@ import glob
 import netifaces
 import math
 import pyotp
+import tinyec
+import secrets
+
 ############################# Functions code  #######################
 # function to print the usage help
 def print_usage():
@@ -57,13 +60,19 @@ def upload_file(filename,servername,username,password,totp,deleteafterupload):
    # compute the totp
    totpf = pyotp.TOTP(totp)
    totpc=totpf.now()   
+   # compute an EC key pair
+   curve = registry.get_curve('brainpoolP256r1')
+   PrivKey = secrets.randbelow(curve.field.n)
+   PubKey = PrivKey * curve.g   
+   Publickey=compress(PubKey)
    # creates authentication message
    auth="{\"username\":\""+username+"\","
    auth=auth+"\"password\":\""+password+"\","
    auth=auth+"\"filename\":\""+filename+"\","
    auth=auth+"\"filesize\":\""+str(filesize)+"\","
    auth=auth+"\"filehash\":\""+filehash+"\","
-   auth=auth+"\"totp\":\""+totpc+"\""
+   auth=auth+"\"totp\":\""+totpc+"\","
+   auth=auth+"\"pubkey\":\""+PublicKey+"\""
    auth=auth+"}"
    print("[Debug] Authentication message: "+auth)
    ## opens connection over TLS to the upload servers
@@ -104,6 +113,9 @@ def upload_file(filename,servername,username,password,totp,deleteafterupload):
           #socket closing
           ssock.close()      
    return flag
+# function to compress a public key in hex   
+def compress(pubKey):
+    return hex(pubKey.x) + hex(pubKey.y % 2)[2:]
    
 ############################# End functions code  ###################
 

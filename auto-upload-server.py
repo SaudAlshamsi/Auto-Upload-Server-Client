@@ -13,6 +13,8 @@ import getopt
 import argon2
 import hashlib
 import pyotp
+import tinyec
+import secrets
 # renames method
 thread_lock = threading.Lock() 
 
@@ -62,6 +64,7 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
         filesize=""
         filehash=""
         totp=""
+        pubkey=""
         if "username" in d.keys(): 
             username=d["username"]
         if "password" in d.keys(): 
@@ -74,6 +77,8 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
             filehash=d["filehash"]
         if "totp" in d.keys(): 
             totp=d["totp"]
+        if "pubkey" in d.keys(): 
+            totp=d["pubkey"]            
         if len(username)==0 or len(password)==0 or len(filesize)==0 or  len(filehash)==0 or len(totp)==0 :
             answer="{\"answer\":\"KO\",\"message\":\"Authorization denied\"}"
             conn.sendall(answer.encode('utf-8'))
@@ -85,8 +90,14 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
             conn.sendall(answer.encode('utf-8'))
             print("[Info] Authorizaton denied for wrong credentials")
             break
+        # generate EC keys pair
+        # compute an EC key pair
+        curve = registry.get_curve('brainpoolP256r1')
+        PrivKey = secrets.randbelow(curve.field.n)
+        PubKey = PrivKey * curve.g   
+        Publickey=compress(PubKey)
         #authorized message
-        answer="{\"answer\":\"OK\",\"message\":\"Transfer Authorized - Waiting for data\"}"
+        answer="{\"answer\":\"OK\",\"message\":\"Transfer Authorized - Waiting for data\",\"pubkey\":\""+Publickey+"\"}"
         conn.sendall(answer.encode('utf-8'))
         print("[Info] Authorized file transfer:"+filename+" waiting for data")
         #create user folder if does not exist

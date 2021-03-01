@@ -30,7 +30,7 @@ The main components are:
 apt-get update  
 apt-get upgrade  
 apt-get install python3-openssl python3-argon2 python3-netifaces python3-pyotp
-pip3 installl tyniec
+pip3 installl tinyec
 ```
 
 ### TLS Certificate/Private Key

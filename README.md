@@ -29,7 +29,7 @@ The main components are:
 ```bash
 apt-get update  
 apt-get upgrade  
-apt-get install python3-openssl python3-argon2 python3-netifaces python3-pyotp
+apt-get install python3-openssl python3-argon2 python3-netifaces python3-pyotp python3-pip
 pip3 installl tinyec
 ```
 

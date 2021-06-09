@@ -67,4 +67,3 @@ print("[Info] New user added with TOTP SEED:",totp," (please configure it in you
 sys.exit(0)
 
 
-

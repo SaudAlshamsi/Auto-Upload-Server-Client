@@ -15,6 +15,7 @@ import math
 import pyotp
 import tinyec
 import secrets
+from tinyec import registry
 
 ############################# Functions code  #######################
 # function to print the usage help
@@ -39,12 +40,12 @@ def get_hash_file(filename):
     
 #function to secure delete a file over writing with random data and remove
 def secure_delete(filename):
-    with open(filename, "ba+") as delfile:
-        length = delfile.tell()
-        delfile.seek(0)
-        x=math.ceil(length/32768)
-        for y in range(x):
-           delfile.write(os.urandom(length))
+#    with open(filename, "ba+") as delfile:
+#        length = delfile.tell()
+#        delfile.seek(0)
+#        x=math.ceil(length/32768)
+#        for y in range(x):
+#           delfile.write(os.urandom(length))
     os.remove(filename)    
     return
    
@@ -64,7 +65,7 @@ def upload_file(filename,servername,username,password,totp,deleteafterupload):
    curve = registry.get_curve('brainpoolP256r1')
    PrivKey = secrets.randbelow(curve.field.n)
    PubKey = PrivKey * curve.g   
-   Publickey=compress(PubKey)
+   PublicKey=compress(PubKey)
    # creates authentication message
    auth="{\"username\":\""+username+"\","
    auth=auth+"\"password\":\""+password+"\","
@@ -77,7 +78,9 @@ def upload_file(filename,servername,username,password,totp,deleteafterupload):
    print("[Debug] Authentication message: "+auth)
    ## opens connection over TLS to the upload servers
    context = ssl.create_default_context()
-   with socket.create_connection((servername, 443)) as sock:
+   context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+   context.load_verify_locations('/usr/src/ca.crt')
+   with socket.create_connection((servername, 444)) as sock:
       with context.wrap_socket(sock, server_hostname=servername) as ssock:
           print("[Debug] TLS version: "+ssock.version())
           #send authentication message
@@ -95,7 +98,7 @@ def upload_file(filename,servername,username,password,totp,deleteafterupload):
                     bytes=f.read(32768);
                     if not bytes:
                        break
-                    print("[Debug] Sending ",len(bytes)," bytes")
+                    #print("[Debug] Sending ",len(bytes)," bytes")
                     ssock.sendall(bytes)
                     totbytes=totbytes+len(bytes)
                     
@@ -103,6 +106,7 @@ def upload_file(filename,servername,username,password,totp,deleteafterupload):
                 print("[Info] Bytes uploaded: ",totbytes)
                 f.close()
                 # waiting confirmation
+                print("[Info] Waiting confirmation from the server...")
                 msg = ssock.recv(1024)
                 confirmation=json.loads(msg.decode('ascii'))
                 # secure delete 
@@ -198,10 +202,10 @@ for fname in os.listdir(folder):
     if result==True:
        print("[Info] Transfer successful")
     # auto delete if required
-    if deleteafterupload=="y" and result==True:
-        print("[Info] Secure deleting: "+folder+fname)
-        secure_delete(folder+fname)
-        print("[Info] Secure delete completed")
+#    if deleteafterupload=="y" and result==True:
+#        print("[Info] Secure deleting: "+folder+fname)
+#        secure_delete(folder+fname)
+#        print("[Info] Secure delete completed")
 
 sys.exit()
 

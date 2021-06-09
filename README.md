@@ -1,7 +1,8 @@
 # Auto Upload Server/Client
 
-This application allows to setup an UPLOADING server and uses a client to periodically upload files over an encrypted connection over TLS.  
-The users' authentication is done using by username and password.  
+This application allows to setup an UPLOADING server and use a a client to 
+periodically upload files over an encrypted connection over TLS.  
+The users' authentication is done using using username/password.  
 The passwords are stored encrypted by a strong (Argon2)[https://en.wikipedia.org/wiki/Argon2] hash.  
 The uploaded files can be automatically deleted after the confirmed upload.  
 For security, the files deleted are overwritten with random data before the cancellation. 
@@ -9,7 +10,6 @@ The upload can start upon condition that a certain network interface is
 active. It can be useful to avoid heavy upload when connected over mobile
 data and start the upload when you are under wifi coverage.
 The server is multi-threaded and it can probably handle >1000 connections at the same time.
-It has been created to transfer heavy files like video recordings.
 
 The main components are:  
 
@@ -21,7 +21,7 @@ The main components are:
 
 - python >= 3.8  
 - Linux Operating system, tested on Debian 10  and Raspberry PI OS
-- python3 libraries for openssl,argon2,pyotp and netifaces
+- python3 libraries for openssl,argon2 and netifaces
 
 ## Installation:
 
@@ -30,7 +30,7 @@ The main components are:
 apt-get update  
 apt-get upgrade  
 apt-get install python3-openssl python3-argon2 python3-netifaces python3-pyotp python3-pip
-pip3 installl tinyec
+pip3 install tinyec
 ```
 
 ### TLS Certificate/Private Key
@@ -77,11 +77,11 @@ The client is the the component uploading the files to the server, to run it
 from a bash/shell:  
 
 ```bash
-python3 auto-upload-client.py --servername=<servername> --username=<username> --password=<password> --totp=<totpseed> --folder=<folder_to_upload> --inet=<networkinterface> --encrypt=<y/N> --deleteafterupload=<y/N>
+python3 auto-upload-client.py --servername=<servername> --username=<username> --password=<password> --folder=<folder_to_upload> --inet=<networkinterface> --encrypt=<y/N> --deleteafterupload=<y/N>
 ```  
 or  
 ```bash
- python3 auto-upload-client.py -s <servername> -u <username> -p <password> -t <totpseed> -f <folder_to_upload> -i <networkinterface> -e <y/N> -d=<y/N>
+ python3 auto-upload-client.py -s <servername> -u <username> -p <password> -f <folder_to_upload> -i <networkinterface> -e <y/N> -d=<y/N>
 ```
 - servername,username,password and folder are mandatories  
 - folder parameter should be path where the files to upload are located  

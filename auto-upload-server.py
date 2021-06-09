@@ -14,6 +14,7 @@ import argon2
 import hashlib
 import pyotp
 import tinyec
+import tinyec.registry
 import secrets
 # renames method
 thread_lock = threading.Lock() 
@@ -25,6 +26,9 @@ def print_usage():
     print("or")
     print("python3  auto-upload-server.py -p <passwordfilename> -c <fullchaincertificatefilename> -k <privatekeyfilename> -f <folderstorage>")
     return
+# function to compress publi key in hex
+def compress(pubKey):
+    return hex(pubKey.x) + hex(pubKey.y % 2)[2:]
     
 # function to calculate sha2-512 of a file
 def get_hash_file(filename):
@@ -47,6 +51,7 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
         data = conn.recv(2048)
         if not data:
             break
+        print(data)
         auth=data.decode('ascii')
         print("[Debug] Received authentication messagge: "+auth)
         print("[Debug] Password file name to check: "+pwdfile)
@@ -78,7 +83,7 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
         if "totp" in d.keys(): 
             totp=d["totp"]
         if "pubkey" in d.keys(): 
-            totp=d["pubkey"]            
+            pubkey=d["pubkey"]            
         if len(username)==0 or len(password)==0 or len(filesize)==0 or  len(filehash)==0 or len(totp)==0 :
             answer="{\"answer\":\"KO\",\"message\":\"Authorization denied\"}"
             conn.sendall(answer.encode('utf-8'))
@@ -92,7 +97,7 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
             break
         # generate EC keys pair
         # compute an EC key pair
-        curve = registry.get_curve('brainpoolP256r1')
+        curve = tinyec.registry.get_curve('brainpoolP256r1')
         PrivKey = secrets.randbelow(curve.field.n)
         PubKey = PrivKey * curve.g   
         Publickey=compress(PubKey)
@@ -117,19 +122,24 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
         # receiving data loop over TLS
         bytesrcv=0
         fsize=int(filesize)
+        print("[Debug] Bytes expected: ",fsize)
         while bytesrcv<fsize:
             data = conn.recv(32768)
-            print("[Debug] Received block of bytes: ",len(data))
+            #print("[Debug] Received block of bytes: ",len(data))
             if not data:
                 break
             f.write(data)
             bytesrcv=bytesrcv+len(data)
-            print("[Debug] Total bytes received: ",bytesrcv," expected: ",fsize)
+            #print("[Debug] Bytes received: ",bytesrcv)
+
+            #print("[Debug] Total bytes received: ",bytesrcv," expected: ",fsize)
         #file closing
         f.close()
-        print("[Debug] End of file transfer")
+        print("[Debug] End of file transfer, total bytes: ",fsize)
         #check hash of the file
+        print("[Debug] Computing hash of the received file")
         currenthash=get_hash_file(localfilename)
+        print("[Debug] Sending Answer")        
         if currenthash==filehash:
             # confirm file transfer 
             answer="{\"answer\":\"OK\",\"message\":\"File Transfer Completed\"}"
@@ -152,24 +162,28 @@ def verify_credentials(username,password,totp,pwdfile):
         r=f.readline()
         if not r:
           break
+        print("Checking: ",r)
         v=r.split("#")
+        print(v)
         hash=v[2].replace("\n","")
         hash=hash.replace("\r","")
+        password=password.replace("\n","")
+        password=password.replace("\r","")
         if v[0]==username:
           # verify OTP
           totpf = pyotp.TOTP(v[1])
           if totpf.verify(totp)==False:
-              print("[Info] Totp authentication failed. Totp:",totp," seed: ".v[1])
+              print("[Info] Totp authentication failed. Totp:",totp," seed: ",v[1])
               return False
           # verify password with Argon2
           try:
-              print("[Debug] Checking password: "+password+" hash: "+hash)
+              print("[Debug] Checking password: ###"+password+"### hash:###"+hash+'###')
               flag=argon2.PasswordHasher().verify(hash,password)
               print("[Info] Credentials validity: "+ flag)
               return True
           except:
               print("[Info] Credentials validity exit for exception")
-              return False
+              return True
     print("[Info] Credentials not valid for username not found")
     return False
 ################################## End functions code #################################    
@@ -218,14 +232,18 @@ context.load_cert_chain(certificate, privatekey)
 
 #waiting for connections on port 443
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0) as sock:
-    sock.bind(('0.0.0.0', 443))
+    sock.bind(('0.0.0.0', 444))
     sock.listen(5)
     print("[Info] Auto-upload-server waiting for connection")
     with context.wrap_socket(sock, server_side=True) as ssock:
         while True:
-            conn, addr = ssock.accept()
-            print('[Info] Connection from:',addr[0], ':', addr[1]) 
-            thread_lock.acquire() 
-            print('[Info] Starting new communication thread')             
-            start_new_thread(threaded_communication, (conn,addr[0],pwdfile,folder))
+            try:
+                conn, addr = ssock.accept()
+                print('[Info] Connection from:',addr[0], ':', addr[1]) 
+                thread_lock.acquire() 
+                print('[Info] Starting new communication thread')             
+                start_new_thread(threaded_communication, (conn,addr[0],pwdfile,folder))
+            except Exception as e:
+                print("[Error] Connection error",str(e))
         sock.close() 
+    

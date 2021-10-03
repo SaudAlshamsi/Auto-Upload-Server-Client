@@ -16,8 +16,6 @@ import pyotp
 import tinyec
 import tinyec.registry
 import secrets
-# renames method
-thread_lock = threading.Lock() 
 
 ################################## Functions code #####################################    
 ## print usage parameters
@@ -61,7 +59,6 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
         except:
             print("[Info] Wrong authentication message")
             conn.close()
-            thread_lock.release() 
             return
         username=""
         password=""
@@ -114,7 +111,6 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
             except OSError:
                 print ("[Error] Creation of the folder %s failed" % localfolder)
                 conn.close()
-                thread_lock.release() 
                 return
         localfilename = localfolder+"/"+os.path.basename(filename)
         print("[Info] Local file name: "+localfilename)
@@ -149,7 +145,6 @@ def threaded_communication(conn,iporigin,pwdfile,folder):
     # close connection and release thread
     print("[Info] Connection closed with: "+iporigin)
     conn.close()
-    thread_lock.release() 
     return
 # function to verify username/password and totp
 def verify_credentials(username,password,totp,pwdfile):
@@ -240,7 +235,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0) as sock:
             try:
                 conn, addr = ssock.accept()
                 print('[Info] Connection from:',addr[0], ':', addr[1]) 
-                thread_lock.acquire() 
                 print('[Info] Starting new communication thread')             
                 start_new_thread(threaded_communication, (conn,addr[0],pwdfile,folder))
             except Exception as e:
